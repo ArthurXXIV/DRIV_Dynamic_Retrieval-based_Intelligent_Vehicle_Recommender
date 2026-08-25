@@ -378,6 +378,7 @@ def to_row(rec):
         "Description": structured.get("Meta_Description") or structured.get("OG_Description"),
         "Price": rec["price"],
         "Price_Type": rec.get("price_type"),
+        "Discontinued": "Yes" if rec.get("discontinued") else "no",
         "URL": rec["url"],
     }
     row.update(structured)
@@ -507,7 +508,8 @@ def main():
                         continue
                     if not rec:
                         continue
-                    rec.update(brand=brand, model=model_slug, trim=trim_slug)
+                    rec.update(brand=brand, model=model_slug, trim=trim_slug,
+                               discontinued=bool(DISCONTINUED_RE.search(model_slug)))
                     rows.append(rec)
                     seen.add(url)
                     logging.debug(f"OK {url} | {rec['price']}")

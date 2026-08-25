@@ -53,6 +53,7 @@ jobs:
         run: |
           python "Web Scraping/data_extractor.py" \
             --shard ${{ matrix.shard }}/${{ env.SHARDS }} \
+            --include-discontinued \
             --out "shard-${{ matrix.shard }}.csv" \
             --raw "shard-${{ matrix.shard }}.json" \
             ${{ github.event.inputs.limit_models && format('--limit-models {0}', github.event.inputs.limit_models) || '' }}
@@ -89,7 +90,10 @@ jobs:
           merge-multiple: true
 
       - name: Drop stale checked-out data
-        run: rm -f "Web Scraping/output.csv" "Data cleaning/Cleaned_data.csv"
+        run: |
+          rm -f "Web Scraping/output.csv" \
+                "Data cleaning/Cleaned_data.csv" \
+                "Data cleaning/Cleaned_data_full.csv"
 
       - name: Merge shards
         run: |
@@ -105,7 +109,7 @@ jobs:
         run: cat "Data cleaning/cleaning_report.txt" || true
 
       - name: Stage dataset
-        run: cp "Data cleaning/Cleaned_data.csv" kaggle_dataset/
+        run: cp "Data cleaning/Cleaned_data_full.csv" kaggle_dataset/
 
       - name: Point at an alternate dataset
         if: github.event.inputs.dataset_id != ''
@@ -138,7 +142,7 @@ jobs:
         run: |
           echo "Dry run: Kaggle publish skipped."
           echo "Inspect the 'dataset' artifact below to review the CSV."
-          head -3 "Data cleaning/Cleaned_data.csv"
+          head -3 "Data cleaning/Cleaned_data_full.csv"
 
       - name: Upload outputs
         if: always()
@@ -148,5 +152,6 @@ jobs:
           path: |
             Web Scraping/output.csv
             Data cleaning/Cleaned_data.csv
+            Data cleaning/Cleaned_data_full.csv
             Data cleaning/cleaning_report.txt
           retention-days: 30
