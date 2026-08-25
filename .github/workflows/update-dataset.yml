@@ -9,9 +9,6 @@ on:
     - cron: '0 3 1 * *'    # 03:00 UTC on the 1st of each month
   workflow_dispatch:
     inputs:
-      shards:
-        description: 'Number of parallel scrape shards'
-        default: '8'
       limit_models:
         description: 'Cap models per brand (for a quick test run; blank = all)'
         default: ''
@@ -91,10 +88,14 @@ jobs:
           pattern: shard-*
           merge-multiple: true
 
+      - name: Drop stale checked-out data
+        run: rm -f "Web Scraping/output.csv" "Data cleaning/Cleaned_data.csv"
+
       - name: Merge shards
         run: |
           python scripts/merge_shards.py shard-*.csv \
-            --out "Web Scraping/output.csv"
+            --out "Web Scraping/output.csv" \
+            --min-rows ${{ github.event.inputs.limit_models && '20' || '200' }}
 
       - name: Clean
         run: python "Data cleaning/Clean_Data.py"
