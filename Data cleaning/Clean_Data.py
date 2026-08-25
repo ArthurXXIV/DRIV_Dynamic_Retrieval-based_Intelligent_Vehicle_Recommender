@@ -138,12 +138,24 @@ def resolve_bool_fields(df, report):
 
 
 def to_rupees(text):
-    """'Rs. 11.02 Lakh' -> 1102000. Ranges return the midpoint."""
+    """'Rs. 11.02 Lakh' -> 1102000. Ranges return the midpoint.
+
+    A unit is mandatory. A bare 'Rs. 1.64' is never a literal 164 paise car --
+    it means the Lakh/Crore token was lost during extraction, so returning NaN
+    surfaces the row as missing rather than silently recording a crore car as
+    two rupees.
+    """
     if not isinstance(text, str):
         return np.nan
     s = text.replace("Estimated Price", "").replace("Rs.", "").replace(",", "").strip()
-    unit = 1e7 if "crore" in s.lower() else (1e5 if "lakh" in s.lower() else 1)
-    nums = re.findall(r"\d+(?:\.\d+)?", re.sub(r"(?i)lakh|crore", "", s))
+    low = s.lower()
+    if re.search(r"crores?\b|\bcr\b", low):
+        unit = 1e7
+    elif re.search(r"lakhs?\b|\bl\b", low):
+        unit = 1e5
+    else:
+        return np.nan
+    nums = re.findall(r"\d+(?:\.\d+)?", re.sub(r"(?i)lakhs?|crores?|\bcr\b|\bl\b", "", s))
     if not nums:
         return np.nan
     vals = [float(n) * unit for n in nums[:2]]
@@ -238,12 +250,15 @@ def main():
 
     bad = out[(out["Price"] < PRICE_MIN) | (out["Price"] > PRICE_MAX)]
     if len(bad):
-        problems.append(f"{len(bad)} rows have implausible prices "
-                        f"(outside Rs {PRICE_MIN:,}-{PRICE_MAX:,}); "
-                        "likely an EMI or parse error")
-        report.append(f"  implausible price examples: "
-                      f"{bad['Price'].head(3).tolist()}")
+        pct = 100 * len(bad) / len(out)
+        report.append(f"  dropped {len(bad)} rows ({pct:.0f}%) with implausible "
+                      f"prices, e.g. {bad['Price'].head(3).tolist()}")
         out = out[(out["Price"] >= PRICE_MIN) & (out["Price"] <= PRICE_MAX)]
+        # Only a widespread failure means the parser is broken; a few odd rows
+        # are just cars CarWale prices unusually.
+        if pct > 10:
+            problems.append(f"{pct:.0f}% of rows had implausible prices -- "
+                            "the price parser is likely broken, not the data")
 
     types = out["Price_Type"].dropna().unique().tolist()
     if len(types) > 1:

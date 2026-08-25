@@ -50,7 +50,12 @@ from tqdm import tqdm
 BASE = "https://www.carwale.com"
 HERE = Path(__file__).resolve().parent
 
-PRICE_RE = r"Rs\.\s*[\d.,]+(?:\s*-\s*[\d.,]+)?\s*(?:Lakh|Crore)?"
+# The unit is REQUIRED. It used to be optional, which let a match succeed on
+# just "Rs. 2.04" when the unit sat outside the matched region -- a Rs 2.04
+# crore Porsche was then read as two rupees. Requiring it means such a match
+# fails and get_price falls through to the next strategy instead.
+PRICE_UNIT = r"(?:Lakhs?|Crores?|Cr\b|L\b)"
+PRICE_RE = r"Rs\.\s*[\d.,]+(?:\s*-\s*[\d.,]+)?\s*" + PRICE_UNIT
 SECTION_RE = re.compile(r"^(.*?)\s*\((\d+)\)$")
 
 # Discontinued models keep their pages up but carry no current price, so they
