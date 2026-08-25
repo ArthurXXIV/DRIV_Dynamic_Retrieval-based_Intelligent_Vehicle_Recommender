@@ -1,0 +1,20 @@
+.venv/
+__pycache__/
+*.pyc
+.DS_Store
+
+# Scraper run artifacts
+Web Scraping/scraper.log
+Web Scraping/car_data.json
+Web Scraping/output.suspect.csv
+
+# CI shard artifacts
+shard-*.csv
+shard-*.json
+Data cleaning/cleaning_report.txt
+Data cleaning/faiss_cosine_index.index
+kaggle_dataset/*.csv
+
+# Private notebook - kept local deliberately
+embeddings-1-1.ipynb
+*.ipynb_checkpoints

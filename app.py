@@ -8,7 +8,15 @@ import sys
 from loguru import logger
 import time
 import os
+from pathlib import Path
+
 GOOGLE_API_KEY = os.getenv("GOOGLE_API_KEY")
+
+# Repo-relative so this runs anywhere; override with DRIV_DATA if needed.
+DATA_PATH = os.getenv(
+    "DRIV_DATA",
+    str(Path(__file__).resolve().parent / "Data cleaning" /
+        "Cleaned_data_with_embeddings.csv"))
 
 # Configure Google Generative AI API
 genai.configure(api_key=GOOGLE_API_KEY)
@@ -47,7 +55,7 @@ backend_instruction = {
 
 # Load Sentence Transformer and data
 roberta_model = SentenceTransformer('all-roberta-large-v1')
-df = pd.read_csv("C:\\CAPSTONE\\Cleaned_data_with_embeddings.csv")
+df = pd.read_csv(DATA_PATH)
 df['embeddings'] = df['embeddings'].apply(lambda x: np.fromstring(x[1:-1], sep=','))
 df['Price'] = pd.to_numeric(df['Price'], errors='coerce')
 df['Mileage'] = pd.to_numeric(df['Mileage'], errors='coerce')
@@ -56,7 +64,7 @@ df = df.dropna(subset=['Price', 'Mileage'])
 # Function to retrieve cars based on price range and best mileage with FAISS timing and cosine similarity
 def get_required_cars(max_price, semantic_search_query, k=5):
     roberta_model = SentenceTransformer('all-roberta-large-v1')
-    df = pd.read_csv("C:\\CAPSTONE\\Cleaned_data_with_embeddings.csv")
+    df = pd.read_csv(DATA_PATH)
     df['embeddings'] = df['embeddings'].apply(lambda x: np.fromstring(x[1:-1], sep=','))
     df['Price'] = pd.to_numeric(df['Price'], errors='coerce')
     df['Mileage'] = pd.to_numeric(df['Mileage'], errors='coerce')

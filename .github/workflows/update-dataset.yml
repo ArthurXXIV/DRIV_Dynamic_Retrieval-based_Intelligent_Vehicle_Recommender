@@ -1,0 +1,151 @@
+name: Update Kaggle dataset
+
+# A full crawl is ~2000 trim pages at ~30s each (~16h), well past the 6h limit
+# on a single GitHub-hosted job. So the brand list is split across parallel
+# shards, then merged, cleaned and published as one Kaggle dataset version.
+
+on:
+  schedule:
+    - cron: '0 3 1 * *'    # 03:00 UTC on the 1st of each month
+  workflow_dispatch:
+    inputs:
+      shards:
+        description: 'Number of parallel scrape shards'
+        default: '8'
+      limit_models:
+        description: 'Cap models per brand (for a quick test run; blank = all)'
+        default: ''
+      publish:
+        description: 'Publish to Kaggle? Set false for a dry run (artifacts only)'
+        type: boolean
+        default: true
+      dataset_id:
+        description: 'Override Kaggle dataset, e.g. user/indian-cars-dataset-test'
+        default: ''
+
+permissions:
+  contents: read
+
+env:
+  SHARDS: 8
+
+jobs:
+  scrape:
+    runs-on: ubuntu-latest
+    timeout-minutes: 330          # under the 360-minute hard limit
+    strategy:
+      fail-fast: false            # one bad shard must not sink the whole run
+      matrix:
+        shard: [0, 1, 2, 3, 4, 5, 6, 7]
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: pip
+
+      - name: Install Chrome
+        uses: browser-actions/setup-chrome@v1
+        with:
+          chrome-version: stable
+
+      - run: pip install -r requirements.txt
+
+      - name: Scrape shard ${{ matrix.shard }}
+        run: |
+          python "Web Scraping/data_extractor.py" \
+            --shard ${{ matrix.shard }}/${{ env.SHARDS }} \
+            --out "shard-${{ matrix.shard }}.csv" \
+            --raw "shard-${{ matrix.shard }}.json" \
+            ${{ github.event.inputs.limit_models && format('--limit-models {0}', github.event.inputs.limit_models) || '' }}
+
+      - name: Upload shard
+        if: always()               # keep partial results from a timed-out shard
+        uses: actions/upload-artifact@v4
+        with:
+          name: shard-${{ matrix.shard }}
+          path: |
+            shard-${{ matrix.shard }}.csv
+            shard-${{ matrix.shard }}.json
+          if-no-files-found: warn
+          retention-days: 7
+
+  publish:
+    needs: scrape
+    if: always()                   # publish from whatever shards did succeed
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: pip
+
+      - run: pip install -r requirements.txt kaggle
+
+      - name: Download shards
+        uses: actions/download-artifact@v4
+        with:
+          pattern: shard-*
+          merge-multiple: true
+
+      - name: Merge shards
+        run: |
+          python scripts/merge_shards.py shard-*.csv \
+            --out "Web Scraping/output.csv"
+
+      - name: Clean
+        run: python "Data cleaning/Clean_Data.py"
+
+      - name: Show cleaning report
+        if: always()
+        run: cat "Data cleaning/cleaning_report.txt" || true
+
+      - name: Stage dataset
+        run: cp "Data cleaning/Cleaned_data.csv" kaggle_dataset/
+
+      - name: Point at an alternate dataset
+        if: github.event.inputs.dataset_id != ''
+        run: |
+          python - <<'PY'
+          import json, os, pathlib
+          p = pathlib.Path("kaggle_dataset/dataset-metadata.json")
+          meta = json.loads(p.read_text())
+          meta["id"] = os.environ["DATASET_ID"]
+          meta["title"] = os.environ["DATASET_ID"].split("/")[-1].replace("-", " ").title()
+          p.write_text(json.dumps(meta, indent=2))
+          print("Publishing to", meta["id"])
+          PY
+        env:
+          DATASET_ID: ${{ github.event.inputs.dataset_id }}
+
+      - name: Publish to Kaggle
+        if: github.event.inputs.publish != 'false'
+        env:
+          KAGGLE_USERNAME: ${{ secrets.KAGGLE_USERNAME }}
+          KAGGLE_KEY: ${{ secrets.KAGGLE_KEY }}
+        run: |
+          kaggle datasets version \
+            -p kaggle_dataset \
+            -m "Automated update $(date -u +%Y-%m-%d)" \
+            --dir-mode zip
+
+      - name: Dry run - skipped publish
+        if: github.event.inputs.publish == 'false'
+        run: |
+          echo "Dry run: Kaggle publish skipped."
+          echo "Inspect the 'dataset' artifact below to review the CSV."
+          head -3 "Data cleaning/Cleaned_data.csv"
+
+      - name: Upload outputs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: dataset
+          path: |
+            Web Scraping/output.csv
+            Data cleaning/Cleaned_data.csv
+            Data cleaning/cleaning_report.txt
+          retention-days: 30
