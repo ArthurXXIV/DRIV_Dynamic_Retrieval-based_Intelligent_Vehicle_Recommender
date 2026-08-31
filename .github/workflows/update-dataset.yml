@@ -113,7 +113,11 @@ jobs:
         run: cat "Data cleaning/cleaning_report.txt" || true
 
       - name: Stage dataset
-        run: cp "Data cleaning/Cleaned_data_full.csv" kaggle_dataset/
+        run: |
+          # Published under a public-facing name; "Cleaned_data_full" is an
+          # internal pipeline artefact name.
+          cp "Data cleaning/Cleaned_data_full.csv" \
+             kaggle_dataset/indian_cars_dataset.csv
 
       - name: Point at an alternate dataset
         if: github.event.inputs.dataset_id != ''

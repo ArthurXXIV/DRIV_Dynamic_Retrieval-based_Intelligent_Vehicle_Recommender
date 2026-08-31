@@ -1,5 +1,166 @@
 {
   "title": "Indian Cars Dataset",
   "id": "atharvanilawar/indian-cars-dataset",
-  "licenses": [{"name": "CC0-1.0"}]
+  "subtitle": "Prices, specifications and features for new cars sold in India",
+  "description": "New car models, variants and specifications from the Indian market.\n\nEach row is a single trim of a single model: its price, engine, transmission,\nfuel type, mileage and a set of features. Both currently sold and discontinued\nmodels are included, flagged by the `Discontinued` column.\n\n## Important: read `Price_Type` before comparing prices\n\nPrices come in two kinds and they are **not** interchangeable:\n\n- `ex-showroom` -- the base price\n- `on-road` -- includes registration, insurance and road tax, typically\n  15-25% higher\n\nSome models only publish one or the other. Filter on `Price_Type` before any\nbudget-based comparison or model training, or the price signal will be noisy.\n\n## Other notes\n\n- `Price` is in Indian rupees. Where the source gave a range, the midpoint is\n  stored.\n- Discontinued models usually have no listed price, so `Price` is blank for\n  many of them.\n- `Mileage` is kmpl and is often blank for electric vehicles, which are quoted\n  in range rather than fuel efficiency.\n- Feature columns are `Yes` / `no`, derived from whether the feature appears in\n  the published specification for that trim. They reflect what the source\n  publishes, which is occasionally wrong for older discontinued models.\n- `Combined Description` concatenates the row into a single text field for\n  embedding or semantic search.\n\nCollected automatically each month.\n",
+  "licenses": [
+    {
+      "name": "CC0-1.0"
+    }
+  ],
+  "keywords": [
+    "tabular",
+    "automobiles",
+    "vehicles"
+  ],
+  "resources": [
+    {
+      "path": "indian_cars_dataset.csv",
+      "description": "One row per car variant: price, engine, transmission, fuel, mileage and features.",
+      "schema": {
+        "fields": [
+          {
+            "name": "Brand",
+            "description": "Manufacturer, e.g. Maruti Suzuki, Tata, BMW."
+          },
+          {
+            "name": "Car",
+            "description": "Model name, e.g. Nexon, Carens Clavis, DB11."
+          },
+          {
+            "name": "Variant",
+            "description": "Trim level within the model, e.g. Creative Plus, HTX, Boxster GTS."
+          },
+          {
+            "name": "Description",
+            "description": "Generated summary of the variant's fuel, transmission, price, engine, mileage and notable features."
+          },
+          {
+            "name": "Price",
+            "description": "Price in Indian rupees. Ranges are stored as their midpoint. Read alongside Price_Type."
+          },
+          {
+            "name": "Price_Type",
+            "description": "Whether Price is 'ex-showroom' or 'on-road'. These are NOT comparable -- on-road includes registration and insurance and runs 15-25% higher. Filter on this before any budget comparison."
+          },
+          {
+            "name": "Discontinued",
+            "description": "'Yes' if the model is superseded or no longer sold. Discontinued cars usually have no listed price."
+          },
+          {
+            "name": "Fuel Type",
+            "description": "Petrol, Diesel, CNG, Electric, LPG or Hybrid."
+          },
+          {
+            "name": "Mileage",
+            "description": "Fuel efficiency in kmpl. Often blank for electric cars, which quote range instead."
+          },
+          {
+            "name": "Transmission",
+            "description": "Gearbox description, e.g. 'Manual - 5 Gears', 'Automatic (DCT) - 7 Gears'."
+          },
+          {
+            "name": "Engine",
+            "description": "Raw engine string as published, e.g. '1199 cc, 3 Cylinders Inline, 4 Valves/Cylinder, DOHC'. Split into the five columns that follow."
+          },
+          {
+            "name": "Displacement (cc)",
+            "description": "Engine displacement in cc, parsed from Engine."
+          },
+          {
+            "name": "Cylinders",
+            "description": "Number of cylinders, parsed from Engine."
+          },
+          {
+            "name": "Cylinder Layout",
+            "description": "Cylinder arrangement: Inline, V, W, Flat."
+          },
+          {
+            "name": "Valves per Cylinder",
+            "description": "Valves per cylinder, parsed from Engine."
+          },
+          {
+            "name": "Valve Train",
+            "description": "Valve train type: DOHC, SOHC, OHV."
+          },
+          {
+            "name": "Cluster Type",
+            "description": "Instrument cluster technology: Analogue, Digital, Analogue - Digital, TFT."
+          },
+          {
+            "name": "Cluster Size",
+            "description": "Cluster screen size where stated, e.g. '12.3-inch'. Most cars do not publish this."
+          },
+          {
+            "name": "Heads Up Display",
+            "description": "Whether a HUD is fitted: Yes, Optional or no."
+          },
+          {
+            "name": "Tachometer",
+            "description": "Tachometer type: Analogue or Digital."
+          },
+          {
+            "name": "Display",
+            "description": "Infotainment display description."
+          },
+          {
+            "name": "Sunroof / Moonroof",
+            "description": "Yes if a sunroof or moonroof is listed."
+          },
+          {
+            "name": "Dashcam",
+            "description": "Yes if a dashcam is listed."
+          },
+          {
+            "name": "Rear AC",
+            "description": "Yes if rear air conditioning is listed."
+          },
+          {
+            "name": "Central Locking",
+            "description": "Yes if central locking is listed."
+          },
+          {
+            "name": "Cruise Control",
+            "description": "Yes if cruise control is listed."
+          },
+          {
+            "name": "Hill Hold Control",
+            "description": "Yes if hill hold control is listed."
+          },
+          {
+            "name": "Ventilated Seats",
+            "description": "Yes if ventilated seats are listed."
+          },
+          {
+            "name": "Wireless Charger",
+            "description": "Yes if wireless phone charging is listed."
+          },
+          {
+            "name": "Adjustable ORVMs",
+            "description": "Yes if adjustable outside mirrors are listed."
+          },
+          {
+            "name": "Integrated (in-dash) Music System",
+            "description": "Yes if an in-dash music or infotainment system is listed."
+          },
+          {
+            "name": "Speakers",
+            "description": "Yes if speakers are listed."
+          },
+          {
+            "name": "Instrument Cluster",
+            "description": "Raw instrument cluster feature list, source for the Cluster columns above."
+          },
+          {
+            "name": "Combined Description",
+            "description": "All fields concatenated into one text blob, intended for embedding / semantic search."
+          },
+          {
+            "name": "Meta_Description",
+            "description": "The site's original SEO meta description. Mostly boilerplate; kept for reference."
+          }
+        ]
+      }
+    }
+  ]
 }
