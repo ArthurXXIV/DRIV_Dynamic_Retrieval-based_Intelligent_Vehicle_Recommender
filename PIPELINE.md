@@ -35,8 +35,15 @@ Settings -> Secrets and variables -> Actions:
 
 | Secret | Where to get it |
 |---|---|
-| `KAGGLE_USERNAME` | your Kaggle username |
-| `KAGGLE_KEY` | Kaggle -> Settings -> API -> Create New Token (`kaggle.json`) |
+| `KAGGLE_API_KEY` | Kaggle -> Settings -> API Tokens -> Generate New Token (an *Access token*, not the legacy key) |
+
+The CLI reads the env var `KAGGLE_API_TOKEN`; the workflow maps the
+`KAGGLE_API_KEY` secret onto it, so the two names differ on purpose.
+
+Kaggle's legacy username+key scheme is deprecated and the newer CLI no longer
+reads it, which is why this uses token auth. The `kaggle` version is pinned --
+an unpinned install once jumped to a release that had removed the auth scheme
+in use and broke the publish step.
 
 The dataset published to is set in `kaggle_dataset/dataset-metadata.json`
 (`atharvanilawar/indian-cars-dataset`). Each run adds a new *version* to that

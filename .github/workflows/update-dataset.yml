@@ -81,7 +81,11 @@ jobs:
           python-version: '3.12'
           cache: pip
 
-      - run: pip install -r requirements.txt kaggle
+      # Pinned deliberately. An unpinned install silently jumped to a release
+      # that had dropped the auth scheme we were using, breaking the publish
+      # step. Token auth needs kaggle >= 1.8.0; 2.2.4 is the version this was
+      # verified against. Bump it intentionally, not by accident.
+      - run: pip install -r requirements.txt "kaggle==2.2.4"
 
       - name: Download shards
         uses: actions/download-artifact@v4
@@ -129,8 +133,10 @@ jobs:
       - name: Publish to Kaggle
         if: github.event.inputs.publish != 'false'
         env:
-          KAGGLE_USERNAME: ${{ secrets.KAGGLE_USERNAME }}
-          KAGGLE_KEY: ${{ secrets.KAGGLE_KEY }}
+          # The GitHub secret is named KAGGLE_API_KEY; the CLI reads the env
+          # var KAGGLE_API_TOKEN. The names need not match -- this maps one to
+          # the other. Value is an Access token from kaggle.com/settings/api.
+          KAGGLE_API_TOKEN: ${{ secrets.KAGGLE_API_KEY }}
         run: |
           kaggle datasets version \
             -p kaggle_dataset \
