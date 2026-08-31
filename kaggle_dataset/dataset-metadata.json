@@ -1,8 +1,7 @@
 {
   "title": "Indian Cars Dataset",
   "id": "atharvanilawar/indian-cars-dataset",
-  "subtitle": "Prices, specifications and features for new cars sold in India",
-  "description": "New car models, variants and specifications from the Indian market.\n\nEach row is a single trim of a single model: its price, engine, transmission,\nfuel type, mileage and a set of features. Both currently sold and discontinued\nmodels are included, flagged by the `Discontinued` column.\n\n## Important: read `Price_Type` before comparing prices\n\nPrices come in two kinds and they are **not** interchangeable:\n\n- `ex-showroom` -- the base price\n- `on-road` -- includes registration, insurance and road tax, typically\n  15-25% higher\n\nSome models only publish one or the other. Filter on `Price_Type` before any\nbudget-based comparison or model training, or the price signal will be noisy.\n\n## Other notes\n\n- `Price` is in Indian rupees. Where the source gave a range, the midpoint is\n  stored.\n- Discontinued models usually have no listed price, so `Price` is blank for\n  many of them.\n- `Mileage` is kmpl and is often blank for electric vehicles, which are quoted\n  in range rather than fuel efficiency.\n- Feature columns are `Yes` / `no`, derived from whether the feature appears in\n  the published specification for that trim. They reflect what the source\n  publishes, which is occasionally wrong for older discontinued models.\n- `Combined Description` concatenates the row into a single text field for\n  embedding or semantic search.\n\nCollected automatically each month.\n",
+  "description": "This dataset contains relevant information related to different automobiles available in India such as engine type, specification, required features, price and mileage details. The dataset is derived from web scraping different sources and can be useful for automotive professionals, researchers as well as developers interested in the trends of the automobile industry in India. Among essential attributes identified in every entry are make, model, year, engine specifications, type of fuel, and price, considering which allow one to gain sharper insights.",
   "licenses": [
     {
       "name": "CC0-1.0"
@@ -10,8 +9,7 @@
   ],
   "keywords": [
     "tabular",
-    "automobiles",
-    "vehicles"
+    "automobiles-and-vehicles"
   ],
   "resources": [
     {
