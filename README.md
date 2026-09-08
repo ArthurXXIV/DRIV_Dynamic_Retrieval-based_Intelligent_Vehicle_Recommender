@@ -1,144 +1,134 @@
-# Car Chatbot GenAI
+# DRIV
 
-![Project Banner](./image.png)
+**D**ynamic **R**etrieval-based **I**ntelligent **V**ehicle recommender.
 
-A car recommendation chatbot built using **Retrieval-Augmented Generation (RAG)** architecture. The chatbot leverages a combination of retrieval-based and generative AI techniques to provide:
+A RAG car recommender for the Indian market, built on a self-maintaining
+data pipeline. It scrapes CarWale, publishes a cleaned dataset to Kaggle
+every month via GitHub Actions, and serves recommendations through a
+Streamlit chatbot backed by FAISS retrieval and Gemini generation.
 
-- Detailed car model information.
-- Car comparisons.
-- Answers to user queries tailored to budget, preferences, and requirements.
+**Dataset:** [Indian Cars Dataset on Kaggle](https://www.kaggle.com/datasets/atharvanilawar/indian-cars-dataset)
 
-This project is designed to help users make informed decisions when purchasing a car by recommending the best options based on semantic search and data-driven insights.
+## Architecture
 
----
+```
+scrape → merge → clean → publish (Kaggle)
+                      └→ embed → app.py (Streamlit + FAISS + Gemini)
+```
 
-## Table of Contents
+Each stage is a separate artifact with its own contract.
 
-- [Features](#features)
-- [Tech Stack](#tech-stack)
-- [Installation](#installation)
-- [Usage](#usage)
-- [How It Works](#how-it-works)
-- [Future Enhancements](#future-enhancements)
-- [Contributing](#contributing)
-- [License](#license)
+| Component | Role |
+|---|---|
+| `Web Scraping/data_extractor.py` | Discovers brands, models and trims; extracts specs |
+| `Data cleaning/Clean_Data.py` | Owns the output schema; emits the full and bot datasets |
+| `scripts/merge_shards.py` | Unions the parallel CI shards |
+| `scripts/build_embeddings.py` | RoBERTa encoding plus FAISS index construction |
+| `app.py` | Streamlit chatbot |
+| `.github/workflows/update-dataset.yml` | Monthly automated refresh |
 
----
+## The dataset
 
-## Features
+2,614 rows across 34 columns, covering 40 brands, 735 models and 1,261
+variants. 1,837 currently sold, 777 discontinued.
 
-- **AI-Powered Recommendations**: Uses a semantic search model and FAISS to retrieve the most relevant cars.
-- **Customizable Queries**: Supports user-defined preferences like price range, car type (SUV, sedan, etc.), and features (e.g., sunroof).
-- **High Efficiency**: Implements FAISS for fast similarity search and cosine similarity for ranking.
-- **Generative Responses**: Provides detailed explanations and recommendations using Google's Generative AI API.
-- **Interactive Interface**: Built with Streamlit for a conversational user experience.
+Coverage is uneven by design, because the source is real listing data:
 
----
+| Field group | Fill |
+|---|---|
+| Identifiers, features, engine internals | 100% |
+| Fuel type, transmission | 96.6% |
+| Engine | 79.7% |
+| Instrument cluster | 76.2% |
+| Mileage | 58.2% |
+| Price | 57.7% |
 
-## Tech Stack
+Discontinued models account for much of the price gap, since delisted
+cars no longer carry a current figure.
 
-- **Languages**: Python
-- **Machine Learning**: 
-  - Sentence Transformers (`all-roberta-large-v1`)
-  - FAISS (Facebook AI Similarity Search)
-- **Generative AI**: Google Generative AI (`gemini-1.5-flash`)
-- **Frontend**: Streamlit
-- **Logging**: Loguru
-- **Dependencies**: `numpy`, `pandas`
+**Two caveats for consumers of the data.** `Price` mixes two bases:
+1,054 rows are ex-showroom and 454 are on-road, and on-road includes RTO,
+insurance and road tax. Filter on `Price_Type` before any budget
+comparison or ranking. Separately, `Display` fills at only 8.8%, which
+is low enough that it is more likely a field-matching gap than genuine
+absence.
 
----
+## Design notes
 
-## Installation
+**Extraction is layered by durability.** Structured data first (JSON-LD,
+OpenGraph, meta tags), then generic key/value harvesting, then visible-
+label anchoring. Nothing selects on a CSS class, because CarWale rotates
+build-generated class hashes on every deploy. Spec fields are not
+enumerated, so renames and additions flow through without a code change.
+The first run after the rewrite auto-discovered a HIGHLIGHTS block the
+previous hardcoded version would have dropped.
 
-1. Clone the repository.
+**The schema lives in the cleaner, not the scraper.** The scraper
+captures whatever exists, and its columns vary between runs by design.
+The cleaner maps that onto a fixed contract through an alias map, so a
+site-side rename is one string added to a list.
 
-2. Set up a virtual environment (optional but recommended).
+**Failures are loud.** A `--selfcheck` pass runs before every crawl and
+aborts on failure. The cleaning report gives per-field parse coverage.
+Row-count and price-plausibility guards block publication of bad data.
 
-3. Install dependencies.
+**CI shards the crawl.** 44 brands are split across 8 parallel shards by
+stride, then merged, cleaned and published. A serial crawl runs long
+enough to exceed GitHub's six hour job cap; sharded, the full
+scrape-to-publish cycle completes in about 24 minutes.
 
-4. Configure the **Google Generative AI API**:
-   - Obtain your API key from [Google Generative AI](https://generativeai.google.com/).
-   - Replace `'API_KEY'` in the script with your actual API key.
+## Why the rebuild
 
-5. Prepare the dataset:
-   - Ensure your cleaned data file is available as `Cleaned_data_with_embeddings.csv` in the `data` directory.
-   - If using a different dataset, modify the script accordingly.
+The original scraper had been returning nothing useful for roughly two
+years without anyone noticing. Every class-based selector had gone dead
+after site redesigns, every exception was caught by a bare `except`, and
+the script wrote a CSV regardless of outcome. The scheduled workflow
+failed silently too, pointing at a path that no longer existed and never
+installing Chrome.
 
----
+Bugs found during the rebuild, all surfaced by running the pipeline
+rather than by reading it:
 
-## Usage
+- Price extraction returned the monthly EMI figure
+- Cars priced in crore parsed as single-digit rupee values, because the
+  unit was optional in the regex
+- Stale element references would have crashed a full crawl partway
+- Failed runs re-uploaded the previously committed CSV, so a broken run
+  looked successful
+- Section headers matched as features, giving a 12 percentage point
+  false positive rate on feature flags
+- The description field was almost entirely SEO boilerplate and near
+  identical across cars, making it weak as an embedding source
+- Mileage was never converted to numeric, which would have caused the
+  app to drop every row
 
-1. Run the Streamlit app.
+The scraper is not redesign-proof and nothing can be. What changed is
+that the next break will be loud, localized and named in a report.
 
-2. Interact with the chatbot:
-   - Provide your budget and preferences.
-   - Receive car recommendations based on semantic similarity and FAISS indexing.
-   - View detailed specifications and comparisons for the recommended cars.
+## Setup
 
----
+```bash
+git clone https://github.com/ArthurXXIV/DRIV.git
+cd DRIV
+pip install -r requirements.txt
+export GOOGLE_API_KEY="your-key"
+streamlit run app.py
+```
 
-## How It Works
+Embedding generation has its own dependency set in
+`requirements-embeddings.txt`. See `PIPELINE.md` for the full
+scrape-to-publish flow.
 
-### Data Preparation
+`kaggle` is pinned to 2.2.4 for reproducibility. That version dropped
+username/key auth, which is why the pipeline authenticates with a token
+(`KAGGLE_API_TOKEN`). The pin exists so an unpinned install cannot
+silently jump versions again.
 
-- The cleaned dataset includes car specifications (price, mileage, description, and embeddings for semantic search).
-- Data is preprocessed to handle missing values and convert embeddings into a numerical format.
+## Stack
 
-### Recommendation Engine
-
-1. **Semantic Search**:
-   - Encodes user queries and car data using the `all-roberta-large-v1` Sentence Transformer.
-   - Filters results based on user-defined budget ranges and ranks them by cosine similarity.
-
-2. **FAISS Indexing**:
-   - Uses FAISS for efficient similarity searches.
-   - Measures cosine similarity for top-k recommendations.
-
-3. **Generative Responses**:
-   - Generates detailed responses by combining retrieved car data with the query context.
-   - Powered by Google's Generative AI.
-
-### Example Query
-
-- User: "I need an SUV with a sunroof under ₹20 lakhs."
-- Chatbot: Lists the top 5 recommendations with details like price, mileage, description, and semantic similarity scores.
-
----
-
-## Future Enhancements
-
-- Add multi-language support for global users.
-- Integrate advanced filtering options (e.g., fuel type, brand, seating capacity).
-- Expand the dataset with more car models and user reviews.
-- Optimize FAISS indexing for larger datasets.
-- Deploy as a web service for broader accessibility.
-
----
-
-## Contributing
-
-We welcome contributions! To contribute:
-
-1. Fork the repository.
-2. Create a new branch (`feature/new-feature`).
-3. Commit your changes.
-4. Open a Pull Request.
-
-Please ensure your contributions align with the project's goals and follow the coding style outlined in the repository.
-
----
+Python, Selenium, Sentence Transformers (all-roberta-large-v1), FAISS,
+Google Gemini, Streamlit, pandas, GitHub Actions.
 
 ## License
 
-This project is licensed under the MIT License. See the [LICENSE](LICENSE) file for details.
-
----
-
-## Acknowledgements
-
-- Google Generative AI for its robust generative capabilities.
-- Facebook AI for the FAISS library.
-- The open-source community for the `SentenceTransformers` library.
-- [Streamlit](https://streamlit.io/) for making app deployment straightforward.
-
----
+MIT.
